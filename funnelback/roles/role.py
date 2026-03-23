@@ -1,3 +1,5 @@
+import json
+
 from ..properties.list_property import ListProperty
 from ..properties.string_property import StringProperty
 from ..properties.unrestrictable_list import UnrestrictableListProperty
@@ -119,3 +121,29 @@ class Role:
     def normalise(self):
         for p in self.properties:
             p.from_json(self.json).normalise()
+
+
+def load_role(file, client_id):
+    def rewrite_resource(resource):
+        splits = resource.split("~")
+        if splits[0] == "dxp":
+            return resource
+        return client_id + "~" + splits[1]
+
+    def rewrite_property(role, property):
+        role["data"][property] = [rewrite_resource(v) for v in role["data"][property]]
+
+    def rewrite_unrestrictable(role, property):
+        prop = role["data"][property]
+        prop["specificallyAllowedValues"] = [rewrite_resource(v) for v in prop["specificallyAllowedValues"]]
+
+    with open(file, "r") as f:
+        try:
+            role = json.load(f)
+            rewrite_property(role, "inRoles")
+            rewrite_unrestrictable(role, "collections")
+            rewrite_unrestrictable(role, "canEditRoles")
+            rewrite_unrestrictable(role, "canGrantRoles")
+            return Role(role)
+        except json.decoder.JSONDecodeError as e:
+            raise Exception(f"Could not parse file as JSON: {file}") from e

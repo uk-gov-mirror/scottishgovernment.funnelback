@@ -1,7 +1,6 @@
 import click
-import json
 from ..environments import ENVS
-from .role import Role
+from .role import Role, load_role
 from ..worktree import Worktree
 
 
@@ -12,7 +11,7 @@ def drift(environment):
     worktree = Worktree("roles")
     design = worktree.design_files(env)
     for file, path in design.items():
-        design_role = load_role(path)
+        design_role = load_role(path, env.client_id)
         if worktree.has_state_file(env, file):
             state_role = Role(worktree.read_state(env, file))
             diff_roles(design_role, state_role)
@@ -33,6 +32,3 @@ def diff_roles(design, state):
             print(str(d))
 
 
-def load_role(file):
-    with open(file, "r") as f:
-        return Role(json.load(f))

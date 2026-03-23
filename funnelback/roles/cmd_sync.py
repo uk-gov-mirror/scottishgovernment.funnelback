@@ -1,11 +1,10 @@
-import json
 import os
 
 import click
 
 from ..environments import ENVS
 from ..worktree import Worktree
-from .role import Role
+from .role import Role, load_role
 
 
 @click.command()
@@ -36,32 +35,3 @@ def sync(environment, dryrun):
                 print(d)
 
 
-def load_role(file, client_id):
-    def rewrite_resource(resource, client_id):
-        splits = resource.split("~")
-        if splits[0] == "dxp":
-            return resource
-        return client_id + "~" + splits[1]
-
-    def rewrite_property(role, property, client_id):
-        values = role["data"][property]
-        new_values = [rewrite_resource(v, client_id) for v in values]
-        role["data"][property] = new_values
-
-    def rewrite_unrestrictable(role, property, client_id):
-        property = role["data"][property]
-        values = property["specificallyAllowedValues"]
-        new_values = [rewrite_resource(v, client_id) for v in values]
-        property["specificallyAllowedValues"] = new_values
-
-    with open(file, "r") as f:
-        try:
-            role = json.load(f)
-            rewrite_property(role, "inRoles", client_id)
-            rewrite_unrestrictable(role, "collections", client_id)
-            rewrite_unrestrictable(role, "canEditRoles", client_id)
-            rewrite_unrestrictable(role, "canGrantRoles", client_id)
-            # rewrite_unrestrictable(role, "profiles", client_id)
-            return Role(role)
-        except json.decoder.JSONDecodeError as e:
-            raise Exception(f"Could not parse file as JSON: {file}") from e
